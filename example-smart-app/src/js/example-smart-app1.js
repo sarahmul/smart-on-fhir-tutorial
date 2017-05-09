@@ -15,11 +15,20 @@
                     type: 'Observation',
                     query: {
                       code: {
-                        $or: ['http://loinc.org|3879-4', 'http://loinc.org|3507-1',
-                              'http://loinc.org|3830-7']
+                        $or: ['http://loinc.org|8302-2', 'http://loinc.org|8462-4',
+                              'http://loinc.org|8480-6', 'http://loinc.org|2085-9',
+                              'http://loinc.org|2089-1', 'http://loinc.org|55284-4']
                       }
                     }
                   });
+        var med = smart.patient.api.fetchAllWithReferences({
+                    type: 'MedicationOrder',
+                    query: {
+                      code: {
+                        $or: []
+                      }
+                    }
+        })
 
         $.when(pt, obv).fail(onError);
 
@@ -40,10 +49,11 @@
             lname = patient.name[0].family.join(' ');
           }
 
-          var opiate = byCodes('3879-4');
-          var codeine = byCodes('3507-1');
-          var morphine = byCodes('3830-7');
-       
+          var height = byCodes('8302-2');
+          var systolicbp = getBloodPressureValue(byCodes('55284-4'),'8480-6');
+          var diastolicbp = getBloodPressureValue(byCodes('55284-4'),'8462-4');
+          var hdl = byCodes('2085-9');
+          var ldl = byCodes('2089-1');
 
           var p = defaultPatient();
           p.birthdate = dobStr;
@@ -52,10 +62,17 @@
           p.lname = lname;
           p.age = parseInt(calculateAge(dob));
           p.height = getQuantityValueAndUnit(height[0]);
-          p.opiate = getQuantityValueAndUnit(opiate[0]);
-          p.codeine = getQuantityValueAndUnit(codeine[0]);
-          p.morphine = getQuantityValueAndUnit(morphine[0]);
-       
+
+          if (typeof systolicbp != 'undefined')  {
+            p.systolicbp = systolicbp;
+          }
+
+          if (typeof diastolicbp != 'undefined') {
+            p.diastolicbp = diastolicbp;
+          }
+
+          p.hdl = getQuantityValueAndUnit(hdl[0]);
+          p.ldl = getQuantityValueAndUnit(ldl[0]);
 
           ret.resolve(p);
         });
@@ -77,10 +94,28 @@
       birthdate: {value: ''},
       age: {value: ''},
       height: {value: ''},
-      opiate: {value: ''},
-      codeine: {value: ''},
-      morphine: {value: ''},
+      systolicbp: {value: ''},
+      diastolicbp: {value: ''},
+      ldl: {value: ''},
+      hdl: {value: ''},
     };
+  }
+
+  function getBloodPressureValue(BPObservations, typeOfPressure) {
+    var formattedBPObservations = [];
+    BPObservations.forEach(function(observation){
+      var BP = observation.component.find(function(component){
+        return component.code.coding.find(function(coding) {
+          return coding.code == typeOfPressure;
+        });
+      });
+      if (BP) {
+        observation.valueQuantity = BP.valueQuantity;
+        formattedBPObservations.push(observation);
+      }
+    });
+
+    return getQuantityValueAndUnit(formattedBPObservations[0]);
   }
 
   function isLeapYear(year) {
@@ -114,6 +149,7 @@
       return undefined;
     }
   }
+  
 
   window.drawVisualization = function(p) {
     $('#holder').show();
@@ -124,9 +160,10 @@
     $('#birthdate').html(p.birthdate);
     $('#age').html(p.age);
     $('#height').html(p.height);
-    $('#opiate').html(p.opiate);
-    $('#codeine').html(p.codeine);
-    $('#morphine').html(p.morphine);
+    $('#systolicbp').html(p.systolicbp);
+    $('#diastolicbp').html(p.diastolicbp);
+    $('#ldl').html(p.ldl);
+    $('#hdl').html(p.hdl);
   };
 
 })(window);
